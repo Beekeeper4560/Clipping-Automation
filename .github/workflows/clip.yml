@@ -1,0 +1,94 @@
+name: Clip videos
+
+# Run on demand from the Actions tab (paste a URL), or on a schedule that works
+# through every new line in sources.txt. Finished clips are attached to the run as a
+# downloadable artifact.
+#
+# Required repo secret:  ANTHROPIC_API_KEY
+# Optional repo secret:  YT_COOKIES  (contents of a cookies.txt export, for when
+#                        YouTube blocks GitHub's servers with "sign in to confirm")
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Video URL (leave empty to process sources.txt)"
+        required: false
+      num_clips:
+        description: "Max clips"
+        default: "5"
+      reframe:
+        description: "face | center | blur"
+        default: "face"
+      whisper_model:
+        description: "tiny | base | small | medium"
+        default: "small"
+  # Uncomment to process new lines in sources.txt automatically every 6 hours.
+  # schedule:
+  #   - cron: "17 */6 * * *"
+
+concurrency:
+  group: clipper
+  cancel-in-progress: false
+
+jobs:
+  clip:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-dejavu-core
+
+      - name: Install Python packages
+        run: pip install -r requirements.txt
+
+      - name: Cache Whisper models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: whisper-${{ inputs.whisper_model || 'small' }}
+
+      - name: Restore list of already-processed videos
+        uses: actions/cache@v4
+        with:
+          path: work/.clipper_done.json
+          key: clipper-state-${{ github.run_id }}
+          restore-keys: clipper-state-
+
+      - name: Write cookies
+        env:
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
+        run: |
+          if [ -n "$YT_COOKIES" ]; then printf '%s' "$YT_COOKIES" > cookies.txt; fi
+
+      - name: Clip
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          URL: ${{ inputs.url }}
+          NUM_CLIPS: ${{ inputs.num_clips || '5' }}
+          REFRAME: ${{ inputs.reframe || 'face' }}
+          WHISPER_MODEL: ${{ inputs.whisper_model || 'small' }}
+        run: |
+          ARGS=(--num-clips "$NUM_CLIPS" --reframe "$REFRAME" --whisper-model "$WHISPER_MODEL")
+          if [ -f cookies.txt ]; then ARGS+=(--cookies cookies.txt); fi
+          if [ -n "$URL" ]; then
+            python -m clipper "${ARGS[@]}" run "$URL"
+          else
+            python -m clipper "${ARGS[@]}" queue sources.txt
+          fi
+
+      - name: Upload clips
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clips-${{ github.run_number }}
+          path: output/
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,45 @@
+# Clipper settings. Every key is optional; CLI flags override these.
+
+num_clips: 5            # max clips per video (Claude returns fewer if the video is weak)
+min_clip_seconds: 20
+max_clip_seconds: 60
+
+# Tell Claude what your page is about so it picks the right moments.
+niche: ""               # e.g. "business podcast clips; prefer money advice and hot takes"
+
+# How to turn 16:9 into 9:16:
+#   face   - follow the speaker's face (podcasts, interviews, vlogs)
+#   center - fixed centre crop
+#   blur   - whole frame on a blurred background (gameplay, screen recordings, slides)
+reframe: face
+
+whisper_model: small    # tiny/base are fast on CPU; medium/large-v3 are more accurate (GPU recommended)
+language: null          # null = auto-detect; or "en", "hi", "es", ...
+
+width: 1080
+height: 1920
+crf: 20                 # lower = better quality, bigger files
+preset: veryfast
+loudnorm: true          # normalise to -14 LUFS like TikTok/Reels/Shorts
+
+output_dir: output
+work_dir: work
+
+captions:
+  enabled: true
+  font: "DejaVu Sans"   # any installed font, e.g. "Montserrat ExtraBold" if installed
+  font_size: 86
+  words_per_line: 3
+  uppercase: true
+  color: "&H00FFFFFF"           # ASS colour &HAABBGGRR -> white
+  highlight_color: "&H0000E5FF" # yellow active word
+  outline: 6
+  margin_bottom: 520            # px from the bottom; keeps clear of the app's UI
+  hook_overlay: true            # show Claude's hook line as a title for the first seconds
+  hook_seconds: 3.0
+  hook_font_size: 72
+
+claude:
+  model: claude-opus-5-5
+  effort: high
+  fallbacks: true       # if a request is declined, retry on a fallback model server-side

@@ -1,0 +1,5 @@
+anthropic>=2.10
+yt-dlp>=2026.10.26
+faster-whisper>=1.2
+opencv-python-headless>=4.10,<5  # 5.x dropped the bundled Haar face detector
+pyyaml>=6
